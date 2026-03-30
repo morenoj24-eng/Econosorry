@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EconoSORRY! – Economics Board Game</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0f0a1e;
+  --board-bg: #f0e6c8;
+  --cell-border: #c9a96e;
+  --cell-bg: #fffaf0;
+  --inner-bg: #d4b483;
+  --p1: #e63946; --p1d: #9b1d27;
+  --p2: #4361ee; --p2d: #2840b5;
+  --p3: #2a9d8f; --p3d: #1a6158;
+  --p4: #e9a820; --p4d: #b07a0a;
+  --gold: #ffd60a;
+  --cream: #fff8e7;
+  --text: #2d1b00;
+  --muted: #7a5230;
+  --ff: 'Fredoka One', cursive;
+  --fb: 'Nunito', sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  background-image: radial-gradient(ellipse at 20% 20%, rgba(67,97,238,0.12) 0%, transparent 50%),
+                    radial-gradient(ellipse at 80% 80%, rgba(230,57,70,0.10) 0%, transparent 50%);
+  font-family: var(--fb);
+  min-height: 100vh;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 16px 12px 32px;
+}
+
+/* ── HEADER ─────────────────────── */
+.header { text-align: center; margin-bottom: 16px; }
+h1 {
+  font-family: var(--ff);
+  font-size: clamp(1.8rem, 4vw, 2.8rem);
+  color: var(--gold);
+  text-shadow: 3px 3px 0 var(--p1), 6px 6px 0 rgba(0,0,0,.45);
+  letter-spacing: 2px;
+}
+.subtitle { color: #8badd6; font-size: .82rem; margin-top: 4px; }
+
+/* ── LAYOUT ─────────────────────── */
+.game-wrap {
+  display: flex; gap: 18px; align-items: flex-start;
+  flex-wrap: wrap; justify-content: center; width: 100%;
+  max-width: 1040px;
+}
+
+/* ── BOARD ─────────────────────── */
+.board-outer {
+  position: relative;
+  width: 550px; height: 550px;
+  background: var(--board-bg);
+  border-radius: 10px;
+  border: 6px solid #8b6914;
+  box-shadow: 0 8px 40px rgba(0,0,0,.6), inset 0 0 0 3px rgba(255,255,255,.15);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.board-center {
+  position: absolute;
+  left: 55px; top: 55px; right: 55px; bottom: 55px;
+  background: var(--inner-bg);
+  border-radius: 6px;
+  border: 3px solid #8b6914;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  text-align: center; padding: 14px; z-index: 0;
+}
+.board-center h2 {
+  font-family: var(--ff);
+  font-size: 1.85rem; color: #5c3d11; line-height: 1.15;
+  text-shadow: 1px 1px 0 rgba(255,255,255,.4);
+}
+.board-center .topics { color: #7a5230; font-size: .7rem; margin-top: 8px; line-height: 1.8; }
+.board-center .hint { color: #9a6b3a; font-size: .62rem; margin-top: 8px; }
+
+/* Board cells */
+.cell {
+  position: absolute;
+  width: 50px; height: 50px;
+  border: 2px solid var(--cell-border);
+  background: var(--cell-bg);
+  display: flex; align-items: center; justify-content: center;
+  font-size: .58rem; font-weight: 800; color: var(--muted);
+  font-family: var(--fb);
+  border-radius: 5px;
+  z-index: 2;
+  transition: background .25s;
+  overflow: hidden;
+  flex-direction: column; gap: 1px;
+  line-height: 1.1;
+  text-align: center;
+}
+.cell.c-start {
+  background: linear-gradient(135deg, #06d6a0, #0a9e76);
+  color: #fff; font-size: .55rem;
+  border-color: #077e5e;
+}
+.cell.c-goal {
+  background: linear-gradient(135deg, var(--gold), #f4a820);
+  color: #5c3d11; font-size: .55rem;
+  border-color: #b07a0a;
+}
+.cell.c-active {
+  background: rgba(255,214,10,.28);
+  border-color: var(--gold); border-width: 3px;
+}
+/* zone colors */
+.cell.z1 { background: #fff0f1; }
+.cell.z2 { background: #f0f4ff; }
+.cell.z3 { background: #f0fdf9; }
+.cell.z4 { background: #fffbe8; }
+
+/* Pawns */
+.pawn {
+  position: absolute;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.75);
+  z-index: 10;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .55rem; font-weight: 800; color: #fff;
+  box-shadow: 0 2px 6px rgba(0,0,0,.4);
+  transition: left .4s cubic-bezier(.34,1.56,.64,1), top .4s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes pawn-pop { 0%{transform:scale(.5) translateY(-8px)} 70%{transform:scale(1.15)} 100%{transform:scale(1)} }
+.pawn.pop { animation: pawn-pop .4s cubic-bezier(.34,1.56,.64,1); }
+
+/* ── SIDE PANEL ─────────────────── */
+.panel {
+  width: 290px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.card-box {
+  background: rgba(255,255,255,.07);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 12px; padding: 14px;
+}
+.card-box h3 {
+  font-family: var(--ff); color: var(--gold);
+  font-size: .95rem; margin-bottom: 10px;
+}
+
+/* Players list */
+.p-row {
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 10px; border-radius: 8px;
+  background: rgba(0,0,0,.22); margin-bottom: 5px;
+  transition: background .25s, box-shadow .25s;
+}
+.p-row.active {
+  background: rgba(255,255,255,.1);
+  box-shadow: 0 0 0 1px rgba(255,214,10,.4), 0 0 12px rgba(255,214,10,.15);
+}
+.p-dot { width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; border: 2px solid rgba(255,255,255,.45); }
+.p-name { color: #fff; font-weight: 700; font-size: .82rem; flex: 1; }
+.p-pos { color: #8badd6; font-size: .7rem; }
+
+/* Deck UI */
+.deck-card {
+  width: 78px; height: 108px;
+  background: linear-gradient(145deg, #c1121f, #780000);
+  border-radius: 10px;
+  border: 3px solid rgba(255,255,255,.25);
+  margin: 0 auto 10px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: transform .15s, box-shadow .15s;
+  box-shadow: 4px 4px 0 rgba(0,0,0,.45);
+  position: relative;
+  user-select: none;
+}
+.deck-card::before {
+  content: '';
+  position: absolute; inset: 6px;
+  border: 2px solid rgba(255,255,255,.2);
+  border-radius: 5px;
+}
+.deck-card:hover:not(.off) { transform: translateY(-4px); box-shadow: 4px 8px 0 rgba(0,0,0,.45); }
+.deck-card:active:not(.off) { transform: translateY(0); box-shadow: 2px 2px 0 rgba(0,0,0,.45); }
+.deck-card.off { opacity: .45; cursor: not-allowed; }
+.deck-label { font-family: var(--ff); color: rgba(255,255,255,.9); font-size: 1rem; text-align: center; line-height: 1.35; }
+.draw-hint { color: #8badd6; font-size: .75rem; text-align: center; }
+.cards-left { color: #5a7a9e; font-size: .67rem; text-align: center; margin-top: 4px; }
+
+.drawn-card {
+  display: none; border-radius: 8px; padding: 10px;
+  margin-top: 8px; border: 3px solid; text-align: center;
+  background: #fff;
+}
+.drawn-card.show { display: block; }
+.dc-num { font-family: var(--ff); font-size: 2.2rem; line-height: 1; }
+.dc-lbl { font-size: .7rem; color: #555; font-weight: 700; }
+
+/* Game log */
+.log-area {
+  max-height: 95px; overflow-y: auto;
+  background: rgba(0,0,0,.3); border-radius: 7px; padding: 8px;
+}
+.log-entry { font-size: .68rem; color: #8badd6; padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,.04); }
+.log-entry.ok { color: #6fcf97; }
+.log-entry.bad { color: #eb7a7a; }
+.log-entry.pow { color: #f7b731; }
+
+/* How to play */
+.rules li {
+  color: #8badd6; font-size: .7rem; padding: 2px 0;
+  display: flex; gap: 7px; list-style: none;
+}
+.rules li::before { content:'▸'; color: var(--gold); flex-shrink: 0; }
+
+/* ── QUESTION MODAL ─────────────── */
+.overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.78);
+  z-index: 100;
+  display: none; align-items: center; justify-content: center; padding: 16px;
+}
+.overlay.on { display: flex; }
+
+.qmodal {
+  background: var(--cream);
+  border-radius: 20px; padding: 26px;
+  max-width: 530px; width: 100%;
+  border: 4px solid #8b6914;
+  box-shadow: 0 24px 60px rgba(0,0,0,.6);
+}
+@keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-7px)} 40%{transform:translateX(7px)} 60%{transform:translateX(-5px)} 80%{transform:translateX(5px)} }
+.qmodal.shake { animation: shake .38s; }
+
+.qm-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.qm-badge {
+  width: 54px; height: 66px; border-radius: 8px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--ff); font-size: 1.7rem; color: #fff;
+  box-shadow: 3px 3px 0 rgba(0,0,0,.25);
+}
+.qm-player { font-family: var(--ff); font-size: 1.1rem; color: var(--text); }
+.qm-topic {
+  display: inline-block; background: #e9c46a;
+  color: var(--text); font-size: .65rem; font-weight: 800;
+  padding: 2px 8px; border-radius: 20px; margin-top: 4px;
+}
+.qm-q {
+  background: #fff; border: 2px solid #dfc88a;
+  border-radius: 10px; padding: 13px 14px;
+  font-size: .95rem; font-weight: 700; color: var(--text);
+  line-height: 1.55; margin-bottom: 15px;
+}
+.choices { display: flex; flex-direction: column; gap: 7px; }
+.ch-btn {
+  background: #fff; border: 2px solid var(--cell-border);
+  border-radius: 9px; padding: 9px 13px;
+  text-align: left; cursor: pointer;
+  font-family: var(--fb); font-size: .85rem; font-weight: 600; color: var(--text);
+  display: flex; gap: 9px; align-items: flex-start;
+  transition: background .15s, border-color .15s, transform .15s;
+}
+.ch-btn:hover:not(.done) { background: #fff3cc; border-color: #e9a820; transform: translateX(4px); }
+.ch-btn.done { cursor: default; }
+.ch-btn.right { background: #d4f5e2; border-color: #2a9d8f; color: #1a5c52; }
+.ch-btn.wrong { background: #fde8e8; border-color: #e63946; color: #8b1a22; }
+.ch-letter { font-family: var(--ff); font-size: .95rem; color: #8b6914; width: 18px; flex-shrink: 0; }
+
+.feedback {
+  margin-top: 12px; padding: 11px 13px;
+  border-radius: 9px; font-size: .82rem; font-weight: 600;
+  display: none; line-height: 1.5;
+}
+.feedback.on { display: block; }
+.feedback.ok { background: #d4f5e2; border: 2px solid #2a9d8f; color: #1a5c52; }
+.feedback.bad { background: #fde8e8; border: 2px solid #e63946; color: #8b1a22; }
+
+.sorry-pick { margin-top: 12px; display: none; }
+.sorry-pick.on { display: block; }
+.sorry-pick h4 { color: var(--text); font-weight: 800; margin-bottom: 9px; font-size: .9rem; }
+.sp-btn {
+  background: #fde8e8; border: 2px solid #e63946;
+  border-radius: 7px; padding: 7px 14px; margin: 4px;
+  cursor: pointer; font-weight: 700; color: #8b1a22;
+  font-family: var(--fb); font-size: .82rem;
+  transition: background .15s;
+}
+.sp-btn:hover { background: #e63946; color: #fff; }
+
+.cont-btn {
+  margin-top: 13px; width: 100%;
+  background: linear-gradient(135deg, #2a9d8f, #1a6b62);
+  color: #fff; border: none; border-radius: 10px;
+  padding: 12px 24px;
+  font-family: var(--ff); font-size: 1.05rem;
+  cursor: pointer; display: none;
+  transition: transform .15s, box-shadow .15s;
+}
+.cont-btn.on { display: block; }
+.cont-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 14px rgba(0,0,0,.2); }
+
+/* ── WIN MODAL ─────────────────── */
+.win-ov {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.82); z-index: 200;
+  display: none; align-items: center; justify-content: center;
+}
+.win-ov.on { display: flex; }
+.win-box {
+  background: linear-gradient(135deg, #ffd60a, #f4a820);
+  border-radius: 22px; padding: 44px 40px;
+  text-align: center; max-width: 380px; width: 90%;
+  border: 6px solid #8b6914;
+  box-shadow: 0 24px 60px rgba(0,0,0,.6);
+}
+.win-box h2 { font-family: var(--ff); font-size: 2.8rem; color: #5c3d11; }
+.win-box p { color: #7a5230; font-size: 1.05rem; margin: 10px 0 26px; font-weight: 700; }
+.again-btn {
+  background: linear-gradient(135deg, #e63946, #9b1d27);
+  color: #fff; border: none; border-radius: 12px;
+  padding: 14px 36px;
+  font-family: var(--ff); font-size: 1.25rem;
+  cursor: pointer; transition: transform .15s, box-shadow .15s;
+}
+.again-btn:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,.3); }
+
+/* ── SETUP MODAL ─────────────────── */
+.setup-ov {
+  position: fixed; inset: 0;
+  background: rgba(5,2,15,.96); z-index: 300;
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+.setup-box {
+  background: var(--cream);
+  border-radius: 20px; padding: 30px 28px;
+  max-width: 450px; width: 100%;
+  border: 4px solid #8b6914;
+  box-shadow: 0 24px 60px rgba(0,0,0,.7);
+  text-align: center;
+}
+.setup-box h2 { font-family: var(--ff); font-size: 2rem; color: #5c3d11; margin-bottom: 4px; }
+.setup-box > p { color: var(--muted); font-size: .85rem; margin-bottom: 20px; }
+.setup-box h3 { font-family: var(--ff); color: #5c3d11; font-size: 1.05rem; margin-bottom: 10px; }
+
+.cnt-btns { display: flex; gap: 10px; justify-content: center; margin-bottom: 20px; }
+.cnt-btn {
+  width: 58px; height: 58px; border-radius: 50%;
+  border: 3px solid var(--cell-border);
+  background: #fff; font-family: var(--ff); font-size: 1.5rem; color: #5c3d11;
+  cursor: pointer; transition: all .15s;
+}
+.cnt-btn.sel { background: #f4a820; border-color: #8b6914; color: #fff; }
+
+.pn-row {
+  display: flex; align-items: center; gap: 9px; margin-bottom: 10px;
+}
+.pn-dot { width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; border: 2px solid rgba(0,0,0,.2); }
+.pn-row label { width: 72px; font-weight: 700; color: #5c3d11; font-size: .82rem; text-align: right; }
+.pn-row input {
+  flex: 1; border: 2px solid var(--cell-border); border-radius: 8px;
+  padding: 7px 10px; font-family: var(--fb); font-size: .88rem; color: var(--text);
+  background: #fff;
+}
+.pn-row input:focus { outline: none; border-color: #f4a820; }
+
+.go-btn {
+  margin-top: 4px; width: 100%;
+  background: linear-gradient(135deg, #e63946, #9b1d27);
+  color: #fff; border: none; border-radius: 12px;
+  padding: 13px 36px;
+  font-family: var(--ff); font-size: 1.2rem;
+  cursor: pointer; transition: transform .15s, box-shadow .15s;
+}
+.go-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.25); }
+
+/* scrollbar */
+.log-area::-webkit-scrollbar { width: 4px; }
+.log-area::-webkit-scrollbar-track { background: transparent; }
+.log-area::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════ SETUP ═══════ -->
+<div class="setup-ov" id="setupOv">
+  <div class="setup-box">
+    <h2>🎓 EconoSORRY!</h2>
+    <p>Race around the board by answering economics questions correctly!</p>
+    <h3>How many players?</h3>
+    <div class="cnt-btns">
+      <button class="cnt-btn" onclick="pickCount(2)">2</button>
+      <button class="cnt-btn sel" onclick="pickCount(3)">3</button>
+      <button class="cnt-btn" onclick="pickCount(4)">4</button>
+    </div>
+    <div id="nameInputs"></div>
+    <button class="go-btn" onclick="startGame()">▶ Start Game!</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ MAIN ════════ -->
+<div class="header">
+  <h1>🎓 EconoSORRY!</h1>
+  <p class="subtitle">Answer economics questions to race around the board — first to lap the track wins!</p>
+</div>
+
+<div class="game-wrap">
+  <!-- Board -->
+  <div class="board-outer" id="boardOuter">
+    <div class="board-center">
+      <h2>EconoSORRY!</h2>
+      <div class="topics">
+        📈 Supply &amp; Demand Shifts<br>
+        ⚖️ Equilibrium · Surplus · Shortage<br>
+        🔒 Price Floors &amp; Ceilings<br>
+        🌿 Externalities &amp; Market Failure<br>
+        💰 Consumer &amp; Producer Surplus
+      </div>
+      <p class="hint">🏁 Race clockwise — first to pass START wins!</p>
+    </div>
+  </div>
+
+  <!-- Side Panel -->
+  <div class="panel">
+    <!-- Players -->
+    <div class="card-box">
+      <h3>🏆 Players</h3>
+      <div id="playersDisplay"></div>
+    </div>
+
+    <!-- Card Deck -->
+    <div class="card-box">
+      <h3>🃏 Draw a Card</h3>
+      <div class="deck-card" id="deckCard" onclick="drawCard()">
+        <div class="deck-label">DRAW<br>CARD</div>
+      </div>
+      <div class="draw-hint" id="drawHint">Click to draw a card!</div>
+      <div class="cards-left" id="cardsLeft"></div>
+      <div class="drawn-card" id="drawnCard">
+        <div class="dc-num" id="dcNum"></div>
+        <div class="dc-lbl" id="dcLbl"></div>
+      </div>
+    </div>
+
+    <!-- Log -->
+    <div class="card-box">
+      <h3>📋 Game Log</h3>
+      <div class="log-area" id="gameLog">
+        <div class="log-entry">Game started! Draw a card to begin.</div>
+      </div>
+    </div>
+
+    <!-- Rules -->
+    <div class="card-box">
+      <h3>📖 How to Play</h3>
+      <ul class="rules">
+        <li>Draw a card and answer the economics question</li>
+        <li>Correct = move forward that many spaces</li>
+        <li>Wrong = stay where you are</li>
+        <li><strong>SORRY!</strong> card = send an opponent back to START</li>
+        <li>Land on an opponent = they go back to START (bump!)</li>
+        <li>First player to reach space 40+ wins!</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ Q MODAL ═════ -->
+<div class="overlay" id="qOverlay">
+  <div class="qmodal" id="qModal">
+    <div class="qm-head">
+      <div class="qm-badge" id="qBadge"></div>
+      <div>
+        <div class="qm-player" id="qPlayer"></div>
+        <span class="qm-topic" id="qTopic"></span>
+      </div>
+    </div>
+    <div class="qm-q" id="qText"></div>
+    <div class="choices" id="qChoices"></div>
+    <div class="feedback" id="qFeedback"></div>
+    <div class="sorry-pick" id="sorryPick">
+      <h4>☠️ Choose who to send back to START:</h4>
+      <div id="sorryTargets"></div>
+    </div>
+    <button class="cont-btn" id="contBtn" onclick="closeModal()">Continue →</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ WIN MODAL ═══ -->
+<div class="win-ov" id="winOv">
+  <div class="win-box">
+    <h2>🎉 WINNER!</h2>
+    <p id="winMsg"></p>
+    <button class="again-btn" onclick="resetGame()">🔄 Play Again!</button>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════
+//  50-QUESTION BANK
+// ════════════════════════════════════════════════════
+const Q = [
+  // ── SUPPLY & DEMAND SHIFTS (1–12) ──
+  {t:"Supply Shifts", q:"Five new coffee shops open in a small town. What is the most likely effect on equilibrium price and quantity of coffee?", c:["Price rises; quantity falls","Price falls; quantity rises","Both price and quantity rise","Both price and quantity fall"], a:1, x:"More sellers increase supply (shift right) → equilibrium price falls and quantity rises."},
+  {t:"Inferior Goods", q:"Bus rides are an inferior good. If consumer incomes rise significantly, what happens to demand for bus rides?", c:["Demand increases — consumers can now afford more transportation","Demand decreases — consumers switch to preferred alternatives like cars","Supply increases because bus companies earn higher revenues","Supply decreases because operating costs rise"], a:1, x:"For inferior goods, demand FALLS as income rises. Consumers upgrade to cars or other options."},
+  {t:"Supply & Demand", q:"'Lumber prices up sharply.' In a competitive market, this situation leads to what change in new homes?", c:["Increase in price and quantity of new homes","Decrease in price and quantity of new homes","Increase in price of new homes and decrease in quantity","Decrease in price of new homes and increase in quantity"], a:2, x:"Higher lumber costs shift housing supply left → price rises and quantity falls."},
+  {t:"Demand Shifters", q:"Which situation would cause an INCREASE in demand for pizza?", c:["Pizza is an inferior good and consumer income has increased","The price of tacos, a substitute for pizza, has increased","The price of soda, a complement to pizza, has increased","The Surgeon General warns eating pizza leads to heart disease"], a:1, x:"When a substitute's price rises, consumers shift to pizza, increasing demand."},
+  {t:"Supply Shifters", q:"Which of these would cause the supply curve to shift to the RIGHT (increase in supply)?", c:["An increase in the cost of production inputs like labor or raw materials","A decrease in the number of producers in the market","A new technology that lowers per-unit production costs","A government-imposed price floor set above equilibrium"], a:2, x:"Lower-cost technology lets producers supply more at every price — rightward supply shift."},
+  {t:"Complements", q:"If the price of soda (a complement to pizza) increases, what happens to demand for pizza?", c:["Demand for pizza increases","Demand for pizza decreases","Supply of pizza increases","Supply of pizza decreases"], a:1, x:"Complements are consumed together. When one gets more expensive, demand for both falls."},
+  {t:"Normal Goods", q:"Airline tickets are a normal good sold in a competitive market. If consumer incomes increase, what happens to demand?", c:["Demand decreases","Demand stays the same","Demand increases","Supply increases"], a:2, x:"For normal goods, demand RISES as income rises. Higher income → more demand for airline tickets."},
+  {t:"Supply Shifters", q:"A severe drought destroys a large portion of the wheat crop. What happens to the supply of wheat?", c:["Supply increases (shifts right)","Supply decreases (shifts left)","Demand increases (shifts right)","Demand decreases (shifts left)"], a:1, x:"Drought destroys crop inputs → supply shifts left (decreases) at every price."},
+  {t:"Demand Shifters", q:"Consumers expect gasoline prices to rise next month. What happens to demand for gas THIS month?", c:["Demand decreases this month","Demand stays the same","Demand increases this month","Supply decreases this month"], a:2, x:"Expected future price increases cause consumers to buy MORE now → current demand rises."},
+  {t:"Supply Shifters", q:"The number of producers in a market increases significantly. What happens to supply?", c:["Supply decreases (shifts left)","Supply increases (shifts right)","Demand increases (shifts right)","Nothing changes"], a:1, x:"More sellers → more total output at every price → supply shifts right (increases)."},
+  {t:"Substitutes", q:"Burgers and hot dogs are substitutes. If the price of burgers rises, what happens to demand for hot dogs?", c:["Demand for hot dogs decreases","Demand for hot dogs increases","Supply of hot dogs increases","No change in hot dog demand"], a:1, x:"When a substitute gets more expensive, consumers switch to the cheaper good — increasing its demand."},
+  {t:"Demand Shifters", q:"The population of a city increases significantly. What happens to demand for housing?", c:["Demand decreases","Supply increases","Demand increases","Equilibrium price falls"], a:2, x:"More people = more buyers in the market → demand shifts right (increases)."},
+  // ── EQUILIBRIUM & MARKET CLEARING (13–22) ──
+  {t:"Equilibrium", q:"A market schedule shows: at $6, Qd=60 and Qs=60. What is the equilibrium price?", c:["$2","$4","$6","$8"], a:2, x:"Equilibrium is where Qd = Qs. At $6, both quantities equal 60 units."},
+  {t:"Shortage Calculation", q:"At a price of $4: Qd = 90, Qs = 30. What is the size of the shortage?", c:["30 units","60 units","90 units","120 units"], a:1, x:"Shortage = Qd − Qs = 90 − 30 = 60 units. Price is below equilibrium ($6), so consumers want more than is supplied."},
+  {t:"Surplus Calculation", q:"At a price of $8: Qs = 90, Qd = 30. What is the size of the surplus?", c:["20 units","40 units","60 units","90 units"], a:2, x:"Surplus = Qs − Qd = 90 − 30 = 60 units. Price is above equilibrium, so producers supply more than consumers demand."},
+  {t:"Market Pressure", q:"When there is a SHORTAGE in a market, what tends to happen to price?", c:["Price falls","Price rises","Price stays the same","Quantity supplied falls"], a:1, x:"Shortages (Qd > Qs) put UPWARD pressure on price as buyers compete for limited goods."},
+  {t:"Market Pressure", q:"When there is a SURPLUS in a market, what tends to happen to price?", c:["Price rises","Price falls","Quantity demanded falls","Supply decreases"], a:1, x:"Surpluses (Qs > Qd) put DOWNWARD pressure on price as sellers compete to move excess inventory."},
+  {t:"Shortage vs Surplus", q:"If Quantity Demanded is GREATER THAN Quantity Supplied at a given price, there is a:", c:["Surplus","Shortage","Equilibrium","Price floor"], a:1, x:"When QD > QS, buyers want more than is available — this defines a shortage."},
+  {t:"Surplus", q:"When the market price is ABOVE the equilibrium price, the result is a:", c:["Shortage","Surplus","Deadweight loss","Price ceiling"], a:1, x:"Above equilibrium, producers supply more than consumers demand → surplus results."},
+  {t:"Equilibrium", q:"In a free market, prices naturally gravitate toward:", c:["The price floor","The price ceiling","Equilibrium","The highest possible price"], a:2, x:"Shortages push prices up; surpluses push them down — both forces drive prices toward equilibrium."},
+  {t:"Market Clearing", q:"At equilibrium, the market is said to be:", c:["In surplus","In shortage","Cleared","Regulated"], a:2, x:"When Qd = Qs, the market is 'cleared' — no surplus or shortage persists."},
+  {t:"Shortage", q:"At $4 (below equilibrium of $6): Qd=90, Qs=30. This situation creates a:", c:["Surplus of 60 units","Shortage of 30 units","Shortage of 60 units","Surplus of 30 units"], a:2, x:"Price below equilibrium → Qd > Qs → shortage. 90 − 30 = 60 unit shortage."},
+  // ── PRICE FLOORS & CEILINGS (23–32) ──
+  {t:"Price Ceiling", q:"A price ceiling set BELOW the equilibrium price causes a:", c:["Surplus","Shortage","Only a black market — no other effect","No effect at all"], a:1, x:"A binding ceiling keeps price artificially low → Qd > Qs → shortage results."},
+  {t:"Price Floor", q:"Agricultural price support programs guarantee farmers a minimum price ABOVE equilibrium. This is an example of:", c:["A price ceiling that creates a shortage of farm goods","A price ceiling that creates a surplus of farm goods","A price floor that creates a surplus of farm goods","A price floor that creates a shortage of farm goods"], a:2, x:"A minimum price above equilibrium is a binding price floor → Qs > Qd → agricultural surplus."},
+  {t:"Price Controls", q:"For a price FLOOR to be BINDING (to actually affect the market), it must be set:", c:["Below the equilibrium price","At the equilibrium price","Above the equilibrium price","At the consumer's maximum willingness to pay"], a:2, x:"A floor only restricts the market if it's above equilibrium; below equilibrium it is non-binding."},
+  {t:"Price Controls", q:"For a price CEILING to be BINDING (to actually affect the market), it must be set:", c:["Below the equilibrium price","At the equilibrium price","Above the equilibrium price","At the producer's minimum acceptable price"], a:0, x:"A ceiling only constrains the market if it's below equilibrium; above equilibrium it is non-binding."},
+  {t:"Price Floor Effects", q:"A price floor generally causes a:", c:["Shortage","Surplus","Decrease in supply","Increase in demand"], a:1, x:"Price floors keep price above equilibrium → quantity supplied exceeds quantity demanded → surplus."},
+  {t:"Real-World Application", q:"Minimum wage laws are an example of a:", c:["Price ceiling","Price floor","Government subsidy","Per-unit tax"], a:1, x:"Minimum wage sets a legal floor on the price of labor — binding when above the equilibrium wage."},
+  {t:"Real-World Application", q:"Rent control — a government-imposed maximum rent — is an example of a:", c:["Price floor","Price ceiling","Subsidy","Negative externality"], a:1, x:"Rent control caps the price at a maximum — it's a ceiling that typically creates housing shortages."},
+  {t:"Price Floor Calculation", q:"A price floor is set at $8 (equilibrium = $6): Qs=90, Qd=30. This creates a surplus of:", c:["30 units","60 units","90 units","120 units"], a:1, x:"Surplus = Qs − Qd = 90 − 30 = 60 units. The floor prevents the price from falling to clear the market."},
+  {t:"Non-Binding Controls", q:"A price ceiling set ABOVE the equilibrium price has what effect on the market?", c:["Creates a shortage","Creates a surplus","Has no effect — it is non-binding","Causes supply to increase"], a:2, x:"A ceiling above equilibrium is non-binding. The market price is already below the ceiling, so it has no effect."},
+  {t:"Price Ceiling Effects", q:"A binding price ceiling is MOST LIKELY to lead to which of the following?", c:["Excess supply and falling prices","Shortages and possible black markets","Increased investment in the industry","Higher producer surplus"], a:1, x:"Binding ceilings create persistent shortages, which often spawn illegal black markets where goods sell above the ceiling."},
+  // ── CONSUMER & PRODUCER SURPLUS (33–37) ──
+  {t:"Consumer Surplus", q:"Consumer surplus is the area on a supply-demand graph:", c:["Below the supply curve and above the price line","Above the demand curve and below the price line","Above the price line and below the demand curve","Below the price line and above the supply curve"], a:2, x:"Consumer surplus = what consumers were WILLING to pay minus what they ACTUALLY paid."},
+  {t:"Producer Surplus", q:"Producer surplus is the area on a supply-demand graph:", c:["Above the supply curve and below the price line","Below the demand curve and above the price line","Above the demand curve","Below the supply curve"], a:0, x:"Producer surplus = price RECEIVED minus minimum acceptable price (the opportunity cost)."},
+  {t:"Consumer Surplus", q:"When the equilibrium price RISES (all else equal), consumer surplus:", c:["Increases","Stays the same","Decreases","Becomes negative"], a:2, x:"A higher price means consumers pay more and receive less surplus — consumer surplus decreases."},
+  {t:"Producer Surplus", q:"When the equilibrium price FALLS (all else equal), producer surplus:", c:["Increases","Stays the same","Decreases","Becomes negative"], a:2, x:"Lower prices mean producers receive less above their costs — producer surplus decreases."},
+  {t:"Total Welfare", q:"Total economic welfare (total surplus) in a market equals:", c:["Consumer surplus only","Producer surplus only","Consumer surplus + producer surplus","Consumer surplus − producer surplus"], a:2, x:"Total surplus = CS + PS. It measures the total gains from voluntary trade in a market."},
+  // ── EXTERNALITIES & MARKET FAILURE (38–47) ──
+  {t:"Negative Externality", q:"A negative externality occurs when production imposes costs on:", c:["The producer only","The consumer only","Third parties not involved in the transaction","The government only"], a:2, x:"Negative externalities impose costs on uninvolved third parties (e.g., a factory's pollution affecting nearby residents)."},
+  {t:"Correcting Externalities", q:"Which policy BEST resolves a negative externality?", c:["A government subsidy to producers","A per-unit tax on production","A price floor above equilibrium","Increasing the number of producers"], a:1, x:"A per-unit tax forces producers to internalize the external cost, reducing output to the socially optimal level."},
+  {t:"Positive Externality", q:"Chickenpox vaccinations protect the vaccinated person AND reduce infection risk for others. This is an example of:", c:["A negative externality","A positive externality","A public good","A price floor"], a:1, x:"Benefits spill over to uninvolved third parties (the community) — this is a positive externality."},
+  {t:"Positive Externality", q:"When a positive externality exists, the free market produces:", c:["Too much output — above the socially optimal level","Too little output — below the socially optimal level","Exactly the socially optimal level","No output at all"], a:1, x:"The market ignores external benefits → it underproduces relative to what is best for society."},
+  {t:"Deadweight Loss", q:"Deadweight loss represents:", c:["Government tax revenue","Gains from trade that are unrealized due to market distortion","The total value of consumer surplus","Total producer profit"], a:1, x:"Deadweight loss = loss of economic efficiency. It's the value of trades that never happen because of a distortion."},
+  {t:"Subsidy Effect", q:"A government subsidy for AIDS research would shift the:", c:["Demand curve to the left","Demand curve to the right","Supply curve to the right (increase supply)","Supply curve to the left (decrease supply)"], a:2, x:"A subsidy lowers production costs → supply shifts right → output increases toward the social optimum."},
+  {t:"Negative Externality", q:"A factory's air pollution that harms nearby residents is an example of a:", c:["Positive externality","Negative externality","Public good","Price ceiling effect"], a:1, x:"The factory imposes costs on uninvolved third parties — the classic example of a negative externality."},
+  {t:"Correcting Externalities", q:"To correct a POSITIVE externality and move output to the social optimum, the government should:", c:["Tax the producer","Impose a price ceiling","Subsidize production or consumption","Reduce the number of producers"], a:2, x:"A subsidy raises output toward the socially optimal level by reducing costs or increasing demand."},
+  {t:"Public Goods", q:"Public goods are characterized by being non-rival AND:", c:["Excludable","Non-excludable","Privately produced","Subject to price controls"], a:1, x:"Non-rival = one person's use doesn't reduce availability for others. Non-excludable = you can't prevent anyone from using it."},
+  {t:"Free-Rider Problem", q:"The free-rider problem is most closely associated with:", c:["Negative externalities","Public goods","Price floors","Normal goods"], a:1, x:"Because public goods are non-excludable, people can benefit without paying — the free-rider problem."},
+  // ── DOUBLE SHIFTS & ADVANCED (48–50) ──
+  {t:"Double Shift", q:"Demand for streaming services falls AND new platforms enter (supply increases). What is CERTAIN?", c:["Price certainly falls; quantity change is uncertain","Price certainly rises; quantity change is uncertain","Quantity certainly rises; price change is uncertain","Quantity certainly falls; price change is uncertain"], a:0, x:"Both D↓ and S↑ push price DOWN — price fall is certain. But D↓ lowers Q while S↑ raises Q → quantity is uncertain."},
+  {t:"Double Shift", q:"Supply DECREASES and demand INCREASES simultaneously in a market. What is CERTAIN?", c:["Price certainly falls","Price certainly rises","Quantity certainly rises","Quantity certainly falls"], a:1, x:"S↓ raises price; D↑ also raises price. Both shifts push price UP — the price increase is certain."},
+  {t:"Double Shift", q:"Airline fuel costs fall (supply increases) AND consumer incomes rise (airline tickets are a normal good). What is CERTAIN?", c:["Price certainly rises","Quantity certainly rises","Price certainly falls","Quantity certainly falls"], a:1, x:"Falling fuel costs shift S right; rising incomes shift D right. Both effects increase quantity — Q certainly rises."}
+];
+
+// ════════════════════════════════════════════════════
+//  BOARD (40 spaces: 11+9+11+9)
+// ════════════════════════════════════════════════════
+const CELLS = [];
+for(let c=0;c<=10;c++) CELLS.push({x:c*50,y:500});          // bottom L→R  (0–10)
+for(let r=9;r>=1;r--) CELLS.push({x:500,y:r*50});           // right  B→T  (11–19)
+for(let c=10;c>=0;c--) CELLS.push({x:c*50,y:0});            // top    R→L  (20–30)
+for(let r=1;r<=9;r++) CELLS.push({x:0,y:r*50});             // left   T→B  (31–39)
+// 40 total; WIN = reach position 40
+
+// ════════════════════════════════════════════════════
+//  GAME STATE
+// ════════════════════════════════════════════════════
+const PC = ['#e63946','#4361ee','#2a9d8f','#e9a820'];
+const PD = ['#9b1d27','#2840b5','#1a6158','#b07a0a'];
+
+let players=[], curP=0, deck=[], qPool=[], curCard=null, curQ=null;
+let answered=false, awaitSorry=false, gameOn=false;
+
+function buildDeck(){
+  const vals=[1,1,1,1,2,2,2,2,3,3,3,4,4,5,5,5,'SORRY!','SORRY!','SORRY!'];
+  return shuffle([...vals]);
+}
+function shuffle(a){
+  const b=[...a];
+  for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}
+  return b;
+}
+function nextQ(){
+  if(!qPool.length) qPool=shuffle([...Array(50).keys()]);
+  return Q[qPool.pop()];
+}
+
+// ════════════════════════════════════════════════════
+//  SETUP
+// ════════════════════════════════════════════════════
+let selCount=3;
+const DNAMES=['Player 1','Player 2','Player 3','Player 4'];
+
+function pickCount(n){
+  selCount=n;
+  document.querySelectorAll('.cnt-btn').forEach(b=>b.classList.toggle('sel',+b.textContent===n));
+  renderInputs();
+}
+function renderInputs(){
+  const el=document.getElementById('nameInputs');
+  el.innerHTML='';
+  for(let i=0;i<selCount;i++){
+    const row=document.createElement('div');
+    row.className='pn-row';
+    row.innerHTML=`<div class="pn-dot" style="background:${PC[i]};border-color:${PD[i]}"></div>
+      <label>${DNAMES[i]}</label>
+      <input id="ni${i}" type="text" value="${DNAMES[i]}" placeholder="${DNAMES[i]}" maxlength="12">`;
+    el.appendChild(row);
+  }
+}
+function startGame(){
+  players=[];
+  for(let i=0;i<selCount;i++){
+    const el=document.getElementById(`ni${i}`);
+    players.push({name:(el&&el.value.trim())||DNAMES[i], col:PC[i], dk:PD[i], pos:0});
+  }
+  curP=0; deck=buildDeck(); qPool=[]; gameOn=true;
+  document.getElementById('setupOv').style.display='none';
+  buildBoard(); renderPawns(); renderPlayers(); updateDeck();
+  log('🎮 Game started! '+players[curP].name+"'s turn.",'');
+}
+
+// ════════════════════════════════════════════════════
+//  BOARD BUILD
+// ════════════════════════════════════════════════════
+function buildBoard(){
+  const wrap=document.getElementById('boardOuter');
+  wrap.querySelectorAll('.cell,.pawn').forEach(e=>e.remove());
+  CELLS.forEach((pos,i)=>{
+    const d=document.createElement('div');
+    d.className='cell';
+    d.id=`c${i}`;
+    d.style.left=pos.x+'px';
+    d.style.top=pos.y+'px';
+    if(i===0){d.classList.add('c-start');d.innerHTML='🏠<br>START';}
+    else if(i===39){d.classList.add('c-goal');d.innerHTML='🏁<br>GOAL';}
+    else{
+      // zone colors based on quadrant
+      const zone=i<11?'z1':i<20?'z2':i<31?'z3':'z4';
+      d.classList.add(zone);
+      d.textContent=i;
+    }
+    wrap.appendChild(d);
+  });
+}
+
+function renderPawns(){
+  const wrap=document.getElementById('boardOuter');
+  wrap.querySelectorAll('.pawn').forEach(e=>e.remove());
+  const offs=[{dx:2,dy:2},{dx:27,dy:2},{dx:2,dy:27},{dx:27,dy:27}];
+  players.forEach((p,i)=>{
+    const pawn=document.createElement('div');
+    pawn.className='pawn';
+    pawn.id=`pawn${i}`;
+    pawn.style.background=p.col;
+    pawn.style.borderColor=p.dk;
+    pawn.textContent=i+1;
+    placePawn(pawn,p.pos,i,offs);
+    wrap.appendChild(pawn);
+  });
+}
+
+const POFFS=[{dx:3,dy:3},{dx:27,dy:3},{dx:3,dy:27},{dx:27,dy:27}];
+function placePawn(el,pos,pi,offs){
+  const idx=Math.min(pos,39);
+  const {x,y}=CELLS[idx];
+  const o=POFFS[pi%4];
+  el.style.left=(x+o.dx)+'px';
+  el.style.top=(y+o.dy)+'px';
+}
+function movePawn(pi){
+  const el=document.getElementById(`pawn${pi}`);
+  if(!el) return;
+  el.classList.remove('pop');
+  void el.offsetWidth;
+  el.classList.add('pop');
+  placePawn(el,players[pi].pos,pi);
+}
+function hlCell(){
+  document.querySelectorAll('.cell.c-active').forEach(c=>c.classList.remove('c-active'));
+  const idx=Math.min(players[curP].pos,39);
+  document.getElementById(`c${idx}`)?.classList.add('c-active');
+}
+
+// ════════════════════════════════════════════════════
+//  PLAYERS DISPLAY
+// ════════════════════════════════════════════════════
+function renderPlayers(){
+  const el=document.getElementById('playersDisplay');
+  el.innerHTML='';
+  players.forEach((p,i)=>{
+    const r=document.createElement('div');
+    r.className='p-row'+(i===curP?' active':'');
+    r.id=`pr${i}`;
+    const posStr=p.pos===0?'START':p.pos>=40?'🏁 Finished!':'Space '+p.pos;
+    r.innerHTML=`<div class="p-dot" style="background:${p.col};border-color:${p.dk}"></div>
+      <div class="p-name">${i===curP?'▶ ':''}${p.name}</div>
+      <div class="p-pos">${posStr}</div>`;
+    el.appendChild(r);
+  });
+}
+function refreshPlayers(){
+  players.forEach((p,i)=>{
+    const r=document.getElementById(`pr${i}`);
+    if(!r) return;
+    r.className='p-row'+(i===curP?' active':'');
+    const posStr=p.pos===0?'START':p.pos>=40?'🏁 Finished!':'Space '+p.pos;
+    r.querySelector('.p-name').textContent=(i===curP?'▶ ':'')+p.name;
+    r.querySelector('.p-pos').textContent=posStr;
+  });
+}
+
+// ════════════════════════════════════════════════════
+//  DECK & CARD DRAW
+// ════════════════════════════════════════════════════
+function updateDeck(){
+  document.getElementById('cardsLeft').textContent=`${deck.length} cards remaining`;
+}
+function drawCard(){
+  if(!gameOn) return;
+  const btn=document.getElementById('deckCard');
+  if(btn.classList.contains('off')) return;
+  btn.classList.add('off');
+  if(!deck.length){deck=buildDeck();log('🔄 Deck reshuffled!','');}
+  curCard=deck.pop();
+  updateDeck();
+  const dc=document.getElementById('drawnCard');
+  const dcN=document.getElementById('dcNum');
+  const dcL=document.getElementById('dcLbl');
+  dc.classList.add('show');
+  if(curCard==='SORRY!'){
+    dc.style.borderColor='#e63946'; dcN.style.color='#e63946';
+    dcN.textContent='😱'; dcL.textContent='SORRY! Card';
+  }else{
+    dc.style.borderColor=players[curP].col; dcN.style.color=players[curP].col;
+    dcN.textContent=curCard; dcL.textContent=`Move ${curCard} space${curCard>1?'s':''}`;
+  }
+  curQ=nextQ();
+  answered=false;
+  setTimeout(showModal,300);
+}
+
+// ════════════════════════════════════════════════════
+//  QUESTION MODAL
+// ════════════════════════════════════════════════════
+function showModal(){
+  const p=players[curP];
+  const badge=document.getElementById('qBadge');
+  if(curCard==='SORRY!'){badge.style.background='#e63946';badge.textContent='😱';}
+  else{badge.style.background=p.col;badge.textContent=curCard;}
+  const pl=document.getElementById('qPlayer');
+  pl.textContent=p.name+"'s Turn"; pl.style.color=p.col;
+  document.getElementById('qTopic').textContent=curQ.t;
+  document.getElementById('qText').textContent=curQ.q;
+  const ch=document.getElementById('qChoices');
+  ch.innerHTML='';
+  const LETS=['A','B','C','D'];
+  curQ.c.forEach((txt,i)=>{
+    const b=document.createElement('button');
+    b.className='ch-btn';
+    b.innerHTML=`<span class="ch-letter">${LETS[i]}</span><span>${txt}</span>`;
+    b.onclick=()=>answer(i,b);
+    ch.appendChild(b);
+  });
+  const fb=document.getElementById('qFeedback');
+  fb.className='feedback'; fb.textContent='';
+  document.getElementById('sorryPick').className='sorry-pick';
+  document.getElementById('contBtn').className='cont-btn';
+  document.getElementById('qModal').classList.remove('shake');
+  awaitSorry=false;
+  document.getElementById('qOverlay').classList.add('on');
+}
+
+function answer(idx,btnEl){
+  if(document.querySelector('.ch-btn.right')||document.querySelector('.ch-btn.wrong')) return;
+  const ok=idx===curQ.a;
+  answered=ok;
+  document.querySelectorAll('.ch-btn').forEach((b,i)=>{
+    b.classList.add('done');
+    if(i===curQ.a) b.classList.add('right');
+    if(i===idx&&!ok) b.classList.add('wrong');
+  });
+  const fb=document.getElementById('qFeedback');
+  fb.classList.add('on');
+  if(ok){
+    fb.classList.add('ok');
+    fb.innerHTML='✅ Correct! '+curQ.x;
+    if(curCard==='SORRY!'){
+      const targets=players.filter((_,i)=>i!==curP&&players[i].pos>0);
+      if(targets.length){showSorryPick();return;}
+      else{fb.innerHTML+='<br><em>(No opponents to Sorry!)</em>';}
+    }
+    document.getElementById('contBtn').classList.add('on');
+    document.getElementById('contBtn').textContent=curCard==='SORRY!'?'Continue →':`Move ${curCard} space${curCard>1?'s':''} →`;
+  }else{
+    fb.classList.add('bad');
+    fb.innerHTML=`❌ Incorrect! Correct: <strong>${curQ.c[curQ.a]}</strong><br>${curQ.x}`;
+    document.getElementById('qModal').classList.add('shake');
+    document.getElementById('contBtn').classList.add('on');
+    document.getElementById('contBtn').textContent='Stay put — Next player →';
+  }
+}
+
+function showSorryPick(){
+  const area=document.getElementById('sorryPick');
+  const tgts=document.getElementById('sorryTargets');
+  tgts.innerHTML='';
+  players.forEach((p,i)=>{
+    if(i===curP||p.pos===0) return;
+    const b=document.createElement('button');
+    b.className='sp-btn';
+    b.innerHTML=`<span style="background:${p.col};width:12px;height:12px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:middle;"></span>${p.name} (Space ${p.pos})`;
+    b.onclick=()=>applySorry(i);
+    tgts.appendChild(b);
+  });
+  area.classList.add('on');
+  awaitSorry=true;
+}
+
+function applySorry(ti){
+  players[ti].pos=0;
+  log(`😱 SORRY! ${players[curP].name} sent ${players[ti].name} back to START!`,'pow');
+  document.getElementById('sorryPick').className='sorry-pick';
+  awaitSorry=false;
+  movePawn(ti); refreshPlayers();
+  document.getElementById('contBtn').classList.add('on');
+  document.getElementById('contBtn').textContent='Continue →';
+}
+
+function closeModal(){
+  if(awaitSorry) return;
+  const p=players[curP];
+  if(answered&&curCard!=='SORRY!'){
+    const nxt=p.pos+curCard;
+    if(nxt>=40){
+      p.pos=40; movePawn(curP);
+      document.getElementById('qOverlay').classList.remove('on');
+      log(`🏆 ${p.name} crossed the finish line!`,'ok');
+      showWin(p); return;
+    }
+    p.pos=nxt;
+    log(`✅ ${p.name} moved ${curCard} → Space ${nxt}.`,'ok');
+    // bump
+    players.forEach((other,oi)=>{
+      if(oi!==curP&&other.pos===nxt&&other.pos>0){
+        other.pos=0;
+        log(`💥 ${p.name} bumped ${other.name} back to START!`,'pow');
+        movePawn(oi);
+      }
+    });
+  }else if(!answered){
+    log(`❌ ${p.name} answered wrong — stays at Space ${p.pos}.`,'bad');
+  }else{
+    log(`😱 ${p.name} played SORRY!`,'pow');
+  }
+  movePawn(curP); refreshPlayers(); hlCell();
+  document.getElementById('qOverlay').classList.remove('on');
+  document.getElementById('drawnCard').classList.remove('show');
+  curP=(curP+1)%players.length;
+  refreshPlayers();
+  document.getElementById('deckCard').classList.remove('off');
+  document.getElementById('drawHint').textContent=`${players[curP].name}, draw a card!`;
+  log(`▶ ${players[curP].name}'s turn.`,'');
+}
+
+// ════════════════════════════════════════════════════
+//  WIN & RESET
+// ════════════════════════════════════════════════════
+function showWin(p){
+  gameOn=false;
+  document.getElementById('winMsg').textContent=`${p.name} wins the economics race! 🎓`;
+  document.getElementById('winOv').classList.add('on');
+}
+function resetGame(){
+  document.getElementById('winOv').classList.remove('on');
+  document.getElementById('setupOv').style.display='flex';
+  document.getElementById('gameLog').innerHTML='<div class="log-entry">Game started! Draw a card to begin.</div>';
+  renderInputs();
+}
+
+// ════════════════════════════════════════════════════
+//  LOG
+// ════════════════════════════════════════════════════
+function log(msg,cls){
+  const el=document.getElementById('gameLog');
+  const d=document.createElement('div');
+  d.className='log-entry'+(cls?' '+cls:'');
+  d.textContent=msg;
+  el.appendChild(d);
+  el.scrollTop=el.scrollHeight;
+}
+
+// ════════════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════════════
+pickCount(3);
+renderInputs();
+</script>
+</body>
+</html>
